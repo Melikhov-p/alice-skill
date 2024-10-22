@@ -17,7 +17,6 @@ func run() error {
 
 func WebHook(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
-		fmt.Fprintf(writer, `Method not allowed %d`, http.StatusMethodNotAllowed)
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 
 		return
