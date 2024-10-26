@@ -6,13 +6,15 @@ import (
 )
 
 func main() {
+	parseFlags()
 	if err := run(); err != nil {
 		panic(fmt.Sprintf(`Unhandled error %v`, err.Error()))
 	}
 }
 
 func run() error {
-	return http.ListenAndServe(`localhost:8080`, http.HandlerFunc(WebHook))
+	fmt.Println("Running server on " + flagRunAddr)
+	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(WebHook))
 }
 
 func WebHook(writer http.ResponseWriter, request *http.Request) {

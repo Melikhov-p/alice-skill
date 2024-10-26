@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,15 @@ import (
 )
 
 func TestWebHook(t *testing.T) {
+	// тип http.HandlerFunc реализует интерфейс http.Handler
+	// это поможет передать хендлер тестовому серверу
+	handler := http.HandlerFunc(WebHook)
+	// запускаем тестовый сервер, будет выбран первый свободный порт
+	srv := httptest.NewServer(handler)
+	// останавливаем сервер после завершения теста
+	defer srv.Close()
+
+	// ожидаемое содержимое тела ответа при успешном запросе
 	successBody := `{
         "response": {
             "text": "Извините, я пока ничего не умею"
@@ -15,6 +25,7 @@ func TestWebHook(t *testing.T) {
         "version": "1.0"
     }`
 
+	// описываем набор данных: метод запроса, ожидаемый код ответа, ожидаемое тело
 	testCases := []struct {
 		method       string
 		expectedCode int
@@ -28,15 +39,18 @@ func TestWebHook(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.method, func(t *testing.T) {
-			request := httptest.NewRequest(test.method, "/", nil)
-			w := httptest.NewRecorder()
-			WebHook(w, request)
+			request := resty.New().R()
+			request.URL = srv.URL
+			request.Method = test.method
 
-			assert.Equal(t, test.expectedCode, w.Code, `Код ответа не совпадает`)
+			response, err := request.Send()
+			assert.Error(t, err, `ERROR making request`)
+
+			assert.Equal(t, test.expectedCode, response.StatusCode())
 			if test.expectedBody != "" {
-				// assert.JSONEq помогает сравнить две JSON-строки
-				assert.JSONEq(t, test.expectedBody, w.Body.String(), "Тело ответа не совпадает с ожидаемым")
+				assert.JSONEq(t, test.expectedBody, string(response.Body()))
 			}
 		})
 	}
+
 }
