@@ -1,8 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/Melikhov-p/alice-skill/internal/logger"
+	"github.com/Melikhov-p/alice-skill/internal/models"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -13,23 +18,53 @@ func main() {
 }
 
 func run() error {
-	fmt.Println("Running server on " + flagRunAddr)
-	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(WebHook))
+	if err := logger.Initialize(flagLogLevel); err != nil {
+		return err
+	}
+	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
+
+	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(webhook))
 }
 
-func WebHook(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodPost {
-		writer.WriteHeader(http.StatusMethodNotAllowed)
-
+func webhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	writer.Header().Set(`Content-Type`, `application/json`)
+	// десериализуем запрос в структуру модели
+	logger.Log.Debug("decoding request")
+	var req models.Request
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-	_, _ = writer.Write([]byte(`{
-        "response": {
-          "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-      }`))
+	// проверяем, что пришёл запрос понятного типа
+	if req.Request.Type != models.TypeSimpleUtterance {
+		logger.Log.Debug("unsupported request type", zap.String("type", req.Request.Type))
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
+
+	// заполняем модель ответа
+	resp := models.Response{
+		Response: models.ResponsePayload{
+			Text: "Извините, я пока ничего не умею",
+		},
+		Version: "1.0",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// сериализуем ответ сервера
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(resp); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		return
+	}
+	logger.Log.Debug("sending HTTP 200 response")
 }
