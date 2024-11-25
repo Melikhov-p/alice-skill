@@ -1,6 +1,9 @@
 module github.com/Melikhov-p/alice-skill
 
-require github.com/stretchr/testify v1.9.0
+require (
+	github.com/golang/mock v1.6.0
+	github.com/stretchr/testify v1.9.0
+)
 
 require (
 	go.uber.org/multierr v1.10.0 // indirect

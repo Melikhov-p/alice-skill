@@ -4,8 +4,13 @@ const (
 	TypeSimpleUtterance = "SimpleUtterance"
 )
 
+type User struct {
+	UserID string `json:"user_id"`
+}
+
 type Session struct {
-	New bool `json:"new"`
+	New  bool `json:"new"`
+	User User `json:"user"`
 }
 
 // Request описывает запрос пользователя.
